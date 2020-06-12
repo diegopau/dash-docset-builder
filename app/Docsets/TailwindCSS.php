@@ -208,6 +208,12 @@ class TailwindCSS extends BaseDocset
 
     protected function ignoreDarkModeForSomeColors(HtmlPageCrawler $crawler)
     {
+        $crawler->filter('div.relative.overflow-hidden.mb-8')->addClass('dash-ignore-dark-mode');
+        $crawler->filter('div.v-cloak-hidden')
+            ->removeClass('mt-8')
+            ->addClass('pt-4 rounded-t-lg rounded-b-lg bg-white')
+            ->addClass('dash-ignore-dark-mode');
+
         $this->ignoreDarkModeForDefaultColorPaletteSection($crawler);
         $this->ignoreDarkModeForBackgroundColorTable($crawler);
         $this->ignoreDarkModeForTextColorAndPlaceholderColorTables($crawler);
@@ -217,7 +223,7 @@ class TailwindCSS extends BaseDocset
 
     protected function ignoreDarkModeForDefaultColorPaletteSection(HtmlPageCrawler $crawler)
     {
-        $crawler->filter('h2 ~ div div.w-12')->addClass('dash-ignore-dark-mode');
+        $crawler->filter('h2 ~ div div.h-12.w-12.rounded-lg.shadow-inner')->addClass('dash-ignore-dark-mode');
     }
 
     protected function ignoreDarkModeForBackgroundColorTable(HtmlPageCrawler $crawler)
