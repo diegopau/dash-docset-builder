@@ -11,8 +11,8 @@ class RickAstley extends BaseDocset
 {
     public const CODE = 'solarus';
     public const NAME = 'Solarus ';
-    public const URL = 'www.solarus-games.org/doc/latest/';
-    public const INDEX = 'index.html';
+    public const URL = 'solarus-games.org';
+    public const INDEX = 'doc/latest/index.html';
     public const PLAYGROUND = '';
     public const ICON_16 = 'themes/solarus/assets/icons/favicon-16x16.png';
     public const ICON_32 = 'themes/solarus/assets/icons/favicon-32x32.png';
