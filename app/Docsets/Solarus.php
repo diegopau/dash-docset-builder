@@ -2,112 +2,110 @@
 
 namespace Godbout\DashDocsetBuilder\Docsets;
 
-use Godbout\DashDocsetBuilder\Contracts\Docset;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Wa72\HtmlPageDom\HtmlPageCrawler;
 
-abstract class BaseDocset implements Docset
+class RickAstley extends BaseDocset
 {
-    public const CODE = self::CODE;
-    public const NAME = self::NAME;
-    public const URL = self::URL;
-    public const INDEX = self::INDEX;
-    public const PLAYGROUND = self::PLAYGROUND;
-    public const ICON_16 = self::ICON_16;
-    public const ICON_32 = self::ICON_32;
-    public const EXTERNAL_DOMAINS = self::EXTERNAL_DOMAINS;
+    public const CODE = 'solarus';
+    public const NAME = 'Solarus ';
+    public const URL = 'www.solarus-games.org/doc/latest/';
+    public const INDEX = 'index.html';
+    public const PLAYGROUND = '';
+    public const ICON_16 = 'themes/solarus/assets/icons/favicon-16x16.png';
+    public const ICON_32 = 'themes/solarus/assets/icons/favicon-32x32.png';
+    public const EXTERNAL_DOMAINS = [
+        'fonts.googleapis.com',
+        'widget.songkick.com',
+        'cdn-images.mailchimp.com',
+        's3.amazonaws.com',
+        'ajax.googleapis.com'
+    ];
 
 
-    final public function code(): string
+    public function entries(string $file): Collection
     {
-        return static::CODE;
+        $entries = collect();
+
+        $crawler = HtmlPageCrawler::create(Storage::get($file));
+
+        if (Str::contains($file, "{$this->url()}/index.html")) {
+            $crawler->filter('#main_menu li:not(:first-child) a')->each(function () use ($entries) {
+                $entries->push([
+                    'name' => 'Solarus Quest Maker Reference',
+                    'type' => 'Guide',
+                    'path' => $this->url() . '/index.html'
+                ]);
+            });
+        }
+
+        $crawler->filter('#main_menu li:not(:first-child) a')->each(function (HtmlPageCrawler $node) use ($entries) {
+            $entries->push([
+                'name' => $node->text(),
+                'type' => 'Section',
+                'path' => $this->url() . '/' . $node->attr('href')
+            ]);
+        });
+
+        return $entries;
     }
 
-    final public function name(): string
+    public function format(string $file): string
     {
-        return static::NAME;
+        $crawler = HtmlPageCrawler::create(Storage::get($file));
+
+        $this->removeHeader($crawler);
+        $this->removeFooter($crawler);
+
+        $this->removeUnwantedHTML($crawler);
+        $this->removeUnwantedJavaScript($crawler);
+
+        $this->insertDashTableOfContents($crawler);
+
+        return $crawler->saveHTML();
     }
 
-    final public function url(): string
+    protected function removeHeader(HtmlPageCrawler $crawler)
     {
-        return static::URL;
+        $crawler->filter('#header')->remove();
     }
 
-    final public function index(): string
+    protected function removeFooter(HtmlPageCrawler $crawler)
     {
-        return static::URL . '/' . static::INDEX;
+        $crawler->filter('#footer')->remove();
     }
 
-    final public function playground(): string
+    protected function removeUnwantedHTML(HtmlPageCrawler $crawler)
     {
-        return static::PLAYGROUND;
+        $crawler->filterXPath("//img[@src[contains(.,'secure.adnxs.com')]]")->remove();
     }
 
-    final public function icon16(): string
+    protected function removeUnwantedJavaScript(HtmlPageCrawler $crawler)
     {
-        return static::URL . '/' . static::ICON_16;
+        $crawler->filter('noscript')->remove();
+        $crawler->filterXPath("//script[@src[contains(.,'platform.twitter.com')]]")->remove();
+        $crawler->filterXPath("//script[@src[contains(.,'googletagmanager')]]")->remove();
+        $crawler->filterXPath("//script[@src[contains(.,'googleadservices')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'googletagmanager')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'gtag')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'connect.facebook.net')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'google_conversion_id')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'googleadservices')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'platform.twitter.com')]]")->remove();
+        $crawler->filterXPath("//script[text()[contains(.,'twttr.conversion')]]")->remove();
     }
 
-    final public function icon32(): string
+    protected function insertDashTableOfContents(HtmlPageCrawler $crawler)
     {
-        return static::URL . '/' . static::ICON_32;
-    }
+        $crawler->filter('head')
+            ->before('<a name="//apple_ref/cpp/Section/Top" class="dashAnchor"></a>');
 
-    final public function externalDomains(): string
-    {
-        return implode(
-            ',',
-            array_merge((array) static::URL, (array) static::EXTERNAL_DOMAINS)
-        );
-    }
-
-    final public function file(): string
-    {
-        return static::CODE . '/' . static::CODE . '.docset';
-    }
-
-    final public function innerDirectory(): string
-    {
-        return $this->file() . '/Contents/Resources/Documents';
-    }
-
-    final public function innerIndex(): string
-    {
-        return $this->innerDirectory() . '/' . $this->url() . '/' . static::INDEX;
-    }
-
-    final public function downloadedDirectory(): string
-    {
-        return static::CODE . '/docs';
-    }
-
-    final public function downloadedIndex(): string
-    {
-        return $this->downloadedDirectory() . '/' . $this->url() . '/' . static::INDEX;
-    }
-
-    final public function infoPlistFile(): string
-    {
-        return $this->file() . '/Contents/Info.plist';
-    }
-
-    final public function databaseFile(): string
-    {
-        return $this->file() . '/Contents/Resources/docSet.dsidx';
-    }
-
-    final public function htmlFiles(): Collection
-    {
-        $files = Storage::allFiles(
-            $this->innerDirectory()
-        );
-
-        return collect($files)->reject(static function ($file) {
-            return substr($file, -5) !== '.html';
+        $crawler->filter('div.page_title, div.product_title')->each(static function (HtmlPageCrawler $node) {
+            $node->before(
+                '<a id="' . Str::slug($node->text()) . '" name="//apple_ref/cpp/Section/' . rawurlencode($node->text()) . '" class="dashAnchor"></a>'
+            );
         });
     }
-
-    abstract public function entries(string $file): Collection;
-
-    abstract public function format(string $file): string;
 }
